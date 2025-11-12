@@ -1,15 +1,12 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
+# Python
+_pycache_/
 *.py[cod]
 *$py.class
-
-
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
+env/
+venv/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -21,156 +18,44 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# IPython
-profile_default/
-ipython_config.py
+# PyTorch
+*.pth
+*.pt
 
-# pyenv
-.python-version
+# Results
+results/
+*.png
+*.jpg
+*.pdf
 
-# pipenv
-Pipfile.lock
+# Data (large files)
+data/
+*.txt
+*.edf
+*.dat
 
-# PEP 582; used by e.g. pythonnative, pylance
-__pypackages__/
-
-# pyright
-typings/
-
-# celery beat schedule file
-celerybeat-schedule
-
-# dotenv
-.env
-.env.*
-
-# virtualenv
-venv/
-ENV/
-env/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# VS Code
+# IDE
 .vscode/
-
-# JetBrains IDEs
 .idea/
+*.swp
+*.swo
+*~
 
-# macOS
+# OS
 .DS_Store
-
-# Windows
 Thumbs.db
 
 # Logs
 *.log
 
-# Data files
-*.sqlite3
-*.db
-*.h5
-*.hdf5
-*.npy
-*.npz
-
-# Model artifacts
-*.ckpt
-*.pt
-*.pth
-
-# backups
-*.bak
-
-# local env files
-.localenv
-
-# Coverage and profiling
-htmlcov/
-.coverage
-.coverage.*
-
-# Ignore build artifacts from Cython
-cython_debug/
-
-# Add common data science files
-*.csv
-*.tsv
-*.parquet
-
-# Protect secrets
-secrets.json
-
-# End of file
+# Temporary files
+tmp/
+temp/

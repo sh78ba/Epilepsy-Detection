@@ -94,17 +94,24 @@ def get_system_diagnostics():
 # ============================================================================
 @st.cache_resource
 def load_model_and_data():
-    """Load trained model with enhanced diagnostics"""
+    """Load trained model with enhanced diagnostics - prioritize Z_vs_N"""
     try:
         results_dir = 'results'
         model_path = None
         
-        # Search for model file
-        if os.path.exists(results_dir):
-            for root, dirs, files in os.walk(results_dir):
-                for file in files:
-                    if file.endswith('.pth'):
-                        model_path = os.path.join(root, file)
+        # Priority 1: Try Z_vs_N (primary experiment)
+        z_vs_n_path = os.path.join(results_dir, 'Z_vs_N', 'TCN_SA', 'model_fold1.pth')
+        if os.path.exists(z_vs_n_path):
+            model_path = z_vs_n_path
+        else:
+            # Priority 2: Search for any model file
+            if os.path.exists(results_dir):
+                for root, dirs, files in os.walk(results_dir):
+                    for file in files:
+                        if file.endswith('.pth'):
+                            model_path = os.path.join(root, file)
+                            break
+                    if model_path:
                         break
         
         if model_path is None:
@@ -486,6 +493,15 @@ def page_diagnostics():
         st.error(f"❌ {error_msg}")
     else:
         st.success(f"✅ Model loaded successfully!")
+        
+        # Highlight which model/experiment
+        if 'Z_vs_N' in model_path:
+            st.info("✅ **Z vs N Model** (Healthy=Z, Seizure=N) - PRIMARY EXPERIMENT")
+        elif 'O_vs_N' in model_path:
+            st.warning("⚠️ **O vs N Model** (Healthy=O, Seizure=N) - Different dataset!")
+        else:
+            st.warning(f"❓ **Unknown Model:** {model_path}")
+        
         st.write(f"**Model Path:** `{model_path}`")
         st.write(f"**Device:** {device}")
         st.write(f"**Model Type:** {type(model).__name__}")

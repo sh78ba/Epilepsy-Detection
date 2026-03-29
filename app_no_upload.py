@@ -1,5 +1,5 @@
 """
-🧠 Epilepsy Detection AI - With File Upload for Predictions
+🧠 Epilepsy Detection AI - Simplified Dashboard with Complete Metrics
 """
 
 import streamlit as st
@@ -7,7 +7,6 @@ import numpy as np
 import torch
 import os
 import json
-from datetime import datetime
 import plotly.graph_objects as go
 import plotly.express as px
 from sklearn.metrics import (
@@ -249,94 +248,20 @@ def page_metrics():
 
 
 def page_predictions():
-    """Real-time predictions with file upload"""
-    st.title("🧪 Real-time EEG Prediction & File Upload")
+    """Real-time predictions with comprehensive metrics"""
+    st.title("🧪 Real-time EEG Prediction")
     
     model, device, _, _ = load_model_and_data()
     
-    # FILE UPLOAD SECTION
-    with st.container():
-        st.subheader("📁 Upload EEG File")
-        col_upload, col_format = st.columns([3, 1])
-        
-        with col_upload:
-            uploaded_file = st.file_uploader(
-                "Choose EEG signal file (CSV, TXT, NPY, NPZ)",
-                type=['csv', 'txt', 'npy', 'npz'],
-                help="Expected: 100 EEG signal values"
-            )
-        
-        uploaded_eeg = None
-        upload_prediction = None
-        
-        if uploaded_file is not None:
-            try:
-                # Load file based on format
-                if uploaded_file.name.endswith(('.csv', '.txt')):
-                    uploaded_eeg = np.genfromtxt(uploaded_file, delimiter=',')
-                elif uploaded_file.name.endswith('.npy'):
-                    uploaded_eeg = np.load(uploaded_file)
-                elif uploaded_file.name.endswith('.npz'):
-                    data = np.load(uploaded_file)
-                    uploaded_eeg = data[data.files[0]]
-                
-                # Validate and adjust shape
-                if len(uploaded_eeg) > 100:
-                    uploaded_eeg = uploaded_eeg[:100]
-                    st.warning(f"Signal truncated to 100 samples (had {len(uploaded_eeg)} originally)")
-                elif len(uploaded_eeg) < 100:
-                    st.error(f"Signal too short: {len(uploaded_eeg)} samples (need 100)")
-                    uploaded_eeg = None
-                
-                if uploaded_eeg is not None:
-                    # Make prediction
-                    upload_tensor = torch.FloatTensor(uploaded_eeg).unsqueeze(0).unsqueeze(0).to(device)
-                    model.eval()
-                    with torch.no_grad():
-                        output = model(upload_tensor)
-                        probs = torch.softmax(output, dim=1)
-                        upload_prediction = probs[0, 1].cpu().numpy()
-                    
-                    st.success(f"✅ File loaded successfully! Shape: {uploaded_eeg.shape}")
-            except Exception as e:
-                st.error(f"Error loading file: {str(e)}")
-    
-    st.markdown("---")
-    
-    # PREDICTION MODE
-    if uploaded_file and uploaded_eeg is not None:
-        pred_mode = st.radio(
-            "Select prediction to display:",
-            ["Sample Signal", "Uploaded File"],
-            horizontal=True
-        )
-        use_uploaded = (pred_mode == "Uploaded File")
-    else:
-        pred_mode = "Sample Signal"
-        use_uploaded = False
-    
-    # DISPLAY PREDICTIONS
     col1, col2 = st.columns([1.2, 1])
     
     with col1:
-        if use_uploaded:
-            st.subheader("📊 Uploaded EEG Signal")
-            display_eeg = uploaded_eeg
-            current_pred = upload_prediction
-        else:
-            st.subheader("📊 Sample EEG Signal")
-            display_eeg = np.random.randn(100) * 0.5 + np.sin(np.linspace(0, 4*np.pi, 100)) * 0.3
-            
-            sample_tensor = torch.FloatTensor(display_eeg).unsqueeze(0).unsqueeze(0).to(device)
-            model.eval()
-            with torch.no_grad():
-                output = model(sample_tensor)
-                probs = torch.softmax(output, dim=1)
-                current_pred = probs[0, 1].cpu().numpy()
+        st.subheader("Sample EEG Signal")
+        sample_eeg = np.random.randn(100) * 0.5 + np.sin(np.linspace(0, 4*np.pi, 100)) * 0.3
         
         fig = go.Figure()
         fig.add_trace(go.Scatter(
-            y=display_eeg,
+            y=sample_eeg,
             mode='lines',
             name='EEG Signal',
             line=dict(color='#667eea', width=3)
@@ -352,52 +277,43 @@ def page_predictions():
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        st.subheader("🎯 Prediction Result")
+        st.subheader("Prediction Result")
         
-        if current_pred > 0.5:
-            status = "⚠️ SEIZURE"
+        sample_tensor = torch.FloatTensor(sample_eeg).unsqueeze(0).unsqueeze(0).to(device)
+        
+        model.eval()
+        with torch.no_grad():
+            output = model(sample_tensor)
+            probs = torch.softmax(output, dim=1)
+            pred_prob = probs[0, 1].cpu().numpy()
+        
+        if pred_prob > 0.5:
+            status = "⚠️ SEIZURE DETECTED"
             color = "#f56565"
-            status_text = "Seizure detected"
+            status_text = "Seizure activity detected"
         else:
             status = "✅ HEALTHY"
             color = "#48bb78"
-            status_text = "No seizure"
+            status_text = "Normal EEG activity"
         
         st.markdown(f"""
         <div style="background: #f9f9f9; border-left: 5px solid {color}; padding: 20px; border-radius: 12px; text-align: center;">
             <h2 style="color: {color}; margin: 0;">{status}</h2>
             <p style="color: #666; margin: 15px 0;">{status_text}</p>
-            <h3 style="color: #667eea;">Confidence: {max(current_pred, 1-current_pred):.1%}</h3>
+            <h3 style="color: #667eea;">Confidence: {max(pred_prob, 1-pred_prob):.1%}</h3>
         </div>
         """, unsafe_allow_html=True)
         
-        st.metric("Seizure Prob.", f"{current_pred:.2%}")
-        st.metric("Healthy Prob.", f"{1-current_pred:.2%}")
-        
-        # Download Result
-        if use_uploaded and uploaded_file:
-            result_dict = {
-                "filename": uploaded_file.name,
-                "prediction": "SEIZURE" if current_pred > 0.5 else "HEALTHY",
-                "confidence": float(current_pred),
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            col_csv, col_json = st.columns(2)
-            with col_csv:
-                result_df = pd.DataFrame([result_dict])
-                csv = result_df.to_csv(index=False)
-                st.download_button("📥 CSV", csv, "result.csv", "text/csv")
-            
-            with col_json:
-                json_str = json.dumps(result_dict, indent=2)
-                st.download_button("📥 JSON", json_str, "result.json")
+        st.metric("Seizure Probability", f"{pred_prob:.2%}")
+        st.metric("Healthy Probability", f"{1-pred_prob:.2%}")
     
     st.markdown("---")
-    st.subheader("📊 Model Metrics")
+    st.subheader("📊 Model Performance Dashboard")
     
     metrics = load_metrics_data()
+    
     if metrics:
+        # Core Metrics
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Accuracy", f"{metrics.get('accuracy', 0):.2%}")
@@ -407,12 +323,70 @@ def page_predictions():
             st.metric("Recall", f"{metrics.get('sensitivity', 0):.2%}")
         with col4:
             st.metric("F1-Score", f"{metrics.get('f1', 0):.2%}")
+        
+        st.markdown("---")
+        
+        # Additional Metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Specificity", f"{metrics.get('specificity', 0):.2%}")
+        with col2:
+            st.metric("AUC-ROC", f"{metrics.get('auc', 0):.2%}")
+        with col3:
+            st.metric("Sensitivity", f"{metrics.get('sensitivity', 0):.2%}")
+        
+        st.markdown("---")
+        
+        # Confusion Matrix Values
+        st.subheader("📈 Confusion Matrix")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("True Positives (TP)", int(metrics.get('tp', 0)))
+        with col2:
+            st.metric("True Negatives (TN)", int(metrics.get('tn', 0)))
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("False Positives (FP)", int(metrics.get('fp', 0)))
+        with col2:
+            st.metric("False Negatives (FN)", int(metrics.get('fn', 0)))
+        
+        st.markdown("---")
+        
+        # Advanced Metrics
+        st.subheader("🔬 Advanced Metrics")
+        tp = metrics.get('tp', 0)
+        tn = metrics.get('tn', 0)
+        fp = metrics.get('fp', 0)
+        fn = metrics.get('fn', 0)
+        
+        fpr = fp / (fp + tn) if (fp + tn) > 0 else 0
+        fnr = fn / (fn + tp) if (fn + tp) > 0 else 0
+        npv = tn / (tn + fn) if (tn + fn) > 0 else 0
+        ppv = tp / (tp + fp) if (tp + fp) > 0 else 0
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("False Positive Rate", f"{fpr:.2%}")
+        with col2:
+            st.metric("False Negative Rate", f"{fnr:.2%}")
+        with col3:
+            st.metric("Positive Pred. Value", f"{ppv:.2%}")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Negative Pred. Value", f"{npv:.2%}")
+        with col2:
+            st.metric("Balanced Accuracy", f"{(metrics.get('sensitivity', 0) + metrics.get('specificity', 0))/2:.2%}")
+    else:
+        st.info("📊 Train model first: `python main.py`")
 
 
 # ============================================================================
 # MAIN APP
 # ============================================================================
 def main():
+    # Sidebar
     with st.sidebar:
         st.title("🧠 Navigation")
         
@@ -442,13 +416,15 @@ def main():
         **Output:** Binary classification
         """)
     
+    # Load model
     model, device, model_path, error_msg = load_model_and_data()
     
     if error_msg or model is None:
         st.error(f"❌ {error_msg}")
-        st.warning("Please train: `python main.py`")
+        st.warning("Please train the model first: `python main.py`")
         return
     
+    # Page routing
     if st.session_state.current_page == "Metrics":
         page_metrics()
     elif st.session_state.current_page == "Predictions":

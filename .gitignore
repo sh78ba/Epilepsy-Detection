@@ -30,16 +30,6 @@ wheels/
 *.pth
 *.pt
 
-# Results
-results/
-*.png
-*.jpg
-*.pdf
-
-# Data (large files)
-*.txt
-*.edf
-*.dat
 
 # IDE
 .vscode/

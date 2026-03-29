@@ -26,9 +26,6 @@ wheels/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# PyTorch
-*.pth
-*.pt
 
 
 # IDE

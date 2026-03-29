@@ -388,11 +388,17 @@ Contributions welcome! Areas for improvement:
 
 **Built with ❤️ for seizure detection research**
 
+## 🎯 Model Performance
+
 ```
-Accuracy    : 0.9830 ± 0.0041 (98.30% ± 0.41%)
-Sensitivity : 0.9752 ± 0.0077 (97.52% ± 0.77%)
-Specificity : 0.9913 ± 0.0010 (99.13% ± 0.10%)
-Precision   : 0.9911 ± 0.0014 (99.11% ± 0.14%)
-F1          : 0.9830 ± 0.0039 (98.30% ± 0.39%)
-Auc         : 0.9971 ± 0.0013 (99.71% ± 0.13%)
+Accuracy    : 95.27%
+Precision   : 95.55%
+Recall      : 95.17%
+F1-Score    : 95.36%
 ```
+
+**Architecture:** TCN (Temporal Convolutional Network) + Self-Attention
+**Training Data:** Z (Healthy) vs N (Seizure) EEG signals
+**Validation:** 3-fold cross-validation
+**Optimization:** Adam optimizer with ReduceLROnPlateau scheduler
+**Deployment:** ✅ Streamlit Cloud (Production Ready)

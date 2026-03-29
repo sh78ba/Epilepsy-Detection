@@ -72,30 +72,59 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+def get_system_diagnostics():
+    """Get system and file diagnostics"""
+    import glob
+    diag = {
+        'device': 'GPU' if torch.cuda.is_available() else 'CPU',
+        'torch_version': torch.__version__,
+        'streamlit_version': st.__version__,
+        'cwd': os.getcwd(),
+        'model_files': glob.glob('results/**/*.pth', recursive=True),
+        'data_dirs': [d for d in os.listdir('data') if os.path.isdir(f'data/{d}')] if os.path.exists('data') else [],
+        'results_dir_exists': os.path.exists('results'),
+    }
+    return diag
+
+
+# ============================================================================
 # CACHE FUNCTIONS
 # ============================================================================
 @st.cache_resource
 def load_model_and_data():
-    """Load trained model"""
+    """Load trained model with enhanced diagnostics"""
     try:
         results_dir = 'results'
         model_path = None
         
-        for root, dirs, files in os.walk(results_dir):
-            for file in files:
-                if file.endswith('.pth'):
-                    model_path = os.path.join(root, file)
-                    break
+        # Search for model file
+        if os.path.exists(results_dir):
+            for root, dirs, files in os.walk(results_dir):
+                for file in files:
+                    if file.endswith('.pth'):
+                        model_path = os.path.join(root, file)
+                        break
         
         if model_path is None:
-            return None, None, None, "No trained model found"
+            return None, None, None, f"❌ No model found in {os.path.abspath(results_dir)}"
+        
+        # Verify model file exists and is readable
+        if not os.path.exists(model_path):
+            return None, None, None, f"❌ Model path exists in search but not accessible: {model_path}"
+        
+        file_size = os.path.getsize(model_path) / (1024 * 1024)  # Size in MB
         
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         model = load_trained_model(model_path, device)
         
+        if model is None:
+            return None, None, None, f"❌ Failed to load model from {model_path}"
+        
         return model, device, model_path, None
     except Exception as e:
-        return None, None, None, f"Error: {str(e)}"
+        return None, None, None, f"❌ Exception: {str(e)}"
 
 
 @st.cache_data
@@ -409,6 +438,119 @@ def page_predictions():
             st.metric("F1-Score", f"{metrics.get('f1', 0):.2%}")
 
 
+def page_diagnostics():
+    """Diagnostics page for troubleshooting"""
+    st.title("🔧 System Diagnostics")
+    
+    st.markdown("### 🖥️ System Information")
+    diag = get_system_diagnostics()
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Device", diag['device'])
+    with col2:
+        st.metric("PyTorch", diag['torch_version'])
+    with col3:
+        st.metric("Streamlit", diag['streamlit_version'])
+    
+    st.markdown("---")
+    
+    st.markdown("### 📁 File System")
+    
+    st.write(f"**Current Dir:** `{diag['cwd']}`")
+    st.write(f"**Results Dir Exists:** {'✅ Yes' if diag['results_dir_exists'] else '❌ No'}")
+    
+    if diag['model_files']:
+        st.write("**Model Files Found:**")
+        for mf in diag['model_files']:
+            size_mb = os.path.getsize(mf) / (1024 * 1024)
+            st.write(f"  • `{mf}` ({size_mb:.2f} MB)")
+    else:
+        st.warning("❌ No model files found!")
+    
+    if diag['data_dirs']:
+        st.write("**Data Directories:**")
+        for dd in diag['data_dirs']:
+            count = len(os.listdir(f'data/{dd}'))
+            st.write(f"  • `{dd}/` ({count} files)")
+    else:
+        st.error("❌ No data directories found!")
+    
+    st.markdown("---")
+    
+    st.markdown("### 🤖 Model Loading")
+    
+    model, device, model_path, error_msg = load_model_and_data()
+    
+    if error_msg:
+        st.error(f"❌ {error_msg}")
+    else:
+        st.success(f"✅ Model loaded successfully!")
+        st.write(f"**Model Path:** `{model_path}`")
+        st.write(f"**Device:** {device}")
+        st.write(f"**Model Type:** {type(model).__name__}")
+        
+        # Try to show model structure
+        try:
+            model_str = str(model)
+            if len(model_str) > 500:
+                st.write("**Model Structure (first 500 chars):**")
+                st.code(model_str[:500] + "...", language="python")
+            else:
+                st.write("**Model Structure:**")
+                st.code(model_str, language="python")
+        except:
+            pass
+    
+    st.markdown("---")
+    
+    st.markdown("### 📊 Data Loading Test")
+    
+    try:
+        data_dir = 'data'
+        test_segments, test_labels, _, _ = load_experiment_data(data_dir, 'Z', 'N')
+        st.success(f"✅ Data loaded from `{data_dir}`")
+        st.write(f"**Healthy samples:** {(test_labels == 0).sum()}")
+        st.write(f"**Seizure samples:** {(test_labels == 1).sum()}")
+        st.write(f"**Data shape:** {test_segments.shape}")
+    except Exception as e:
+        st.error(f"❌ Data loading error: {str(e)}")
+    
+    st.markdown("---")
+    
+    st.markdown("### 🧪 Quick Inference Test")
+    
+    if model is not None:
+        try:
+            # Create random test data
+            test_input = torch.randn(1, 1, 100).to(device)
+            model.eval()
+            with torch.no_grad():
+                output = model(test_input)
+                probs = torch.softmax(output, dim=1)
+            
+            st.success("✅ Inference test passed!")
+            st.write(f"**Input shape:** {test_input.shape}")
+            st.write(f"**Output shape:** {output.shape}")
+            st.write(f"**Predictions:** Health={probs[0,0]:.2%}, Seizure={probs[0,1]:.2%}")
+        except Exception as e:
+            st.error(f"❌ Inference error: {str(e)}")
+    
+    st.markdown("---")
+    
+    st.markdown("### 📝 Environment Info")
+    
+    env_info = {
+        'Python': '3.11',
+        'PyTorch': diag['torch_version'],
+        'CUDA Available': 'Yes' if torch.cuda.is_available() else 'No',
+        'GPU Count': torch.cuda.device_count() if torch.cuda.is_available() else 0
+    }
+    
+    env_df = pd.DataFrame(list(env_info.items()), columns=['Parameter', 'Value'])
+    st.dataframe(env_df, use_container_width=True, hide_index=True)
+
+
 # ============================================================================
 # MAIN APP
 # ============================================================================
@@ -418,7 +560,7 @@ def main():
         
         page = st.radio(
             "Select Page:",
-            ["Metrics", "Predictions"],
+            ["Metrics", "Predictions", "🔧 Diagnostics"],
             label_visibility="collapsed"
         )
         
@@ -444,12 +586,14 @@ def main():
     
     model, device, model_path, error_msg = load_model_and_data()
     
-    if error_msg or model is None:
+    if st.session_state.current_page == "🔧 Diagnostics":
+        page_diagnostics()
+    elif error_msg or model is None:
         st.error(f"❌ {error_msg}")
         st.warning("Please train: `python main.py`")
-        return
-    
-    if st.session_state.current_page == "Metrics":
+        st.markdown("---")
+        st.markdown("**To get more info, go to → 🔧 Diagnostics**")
+    elif st.session_state.current_page == "Metrics":
         page_metrics()
     elif st.session_state.current_page == "Predictions":
         page_predictions()

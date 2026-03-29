@@ -37,7 +37,6 @@ results/
 *.pdf
 
 # Data (large files)
-data/
 *.txt
 *.edf
 *.dat
@@ -59,3 +58,8 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+
+DEPLOYMENT_GUIDE.md
+DEPLOYMENT_SUMMARY.md
+

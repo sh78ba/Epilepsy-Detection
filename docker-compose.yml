@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  epilepsy-detection:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: epilepsy-detection-app
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./results:/app/results
+      - ./evaluation_results:/app/evaluation_results
+    environment:
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    networks:
+      - epilepsy-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  epilepsy-network:
+    driver: bridge

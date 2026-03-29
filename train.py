@@ -55,7 +55,7 @@ def calculate_metrics(y_true, y_pred, y_pred_proba=None):
     return metrics
 
 
-def train_epoch(model, train_loader, criterion, optimizer, device):
+def train_epoch(model, train_loader, criterion, optimizer, device, scaler=None):
     
     model.train()
     total_loss = 0.0
@@ -66,12 +66,16 @@ def train_epoch(model, train_loader, criterion, optimizer, device):
         # Zero gradients
         optimizer.zero_grad()
         
+        # Add slight noise augmentation
+        data = data + torch.randn_like(data) * 0.01
+        
         # Forward pass
         output = model(data)
         loss = criterion(output, target)
         
         # Backward pass
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
         
         total_loss += loss.item()
@@ -121,11 +125,27 @@ def evaluate(model, data_loader, criterion, device):
 
 def train_model(model, train_loader, val_loader, num_epochs=100, 
                 learning_rate=0.01, device='cuda', save_path=None,
-                early_stopping_patience=20):
+                early_stopping_patience=30):
     
-    # Setup
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=1e-4)
+    # Calculate aggressive class weights to boost recall
+    all_labels = []
+    for _, target in train_loader:
+        all_labels.extend(target.numpy())
+    all_labels = np.array(all_labels)
+    class_counts = np.bincount(all_labels)
+    class_weights = 1.0 / class_counts
+    
+    # More aggressive weighting - heavily penalize missed seizures
+    class_weights[1] = class_weights[1] * 2.5  # Seizure class weight x2.5
+    class_weights = class_weights / class_weights.sum() * len(class_weights)
+    class_weights = torch.FloatTensor(class_weights).to(device)
+    
+    # Setup with class weights and better optimizer config
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-4, betas=(0.9, 0.999))
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='max', factor=0.7, patience=15, min_lr=1e-7, threshold=0.0001
+    )
     
     model = model.to(device)
     
@@ -138,12 +158,13 @@ def train_model(model, train_loader, val_loader, num_epochs=100,
         'val_auc': []
     }
     
-    best_val_loss = float('inf')
+    best_val_f1 = 0.0
     best_val_acc = 0.0
     patience_counter = 0
     
     print(f"Starting training for {num_epochs} epochs...")
     print(f"Device: {device}")
+    print(f"Class weights (Healthy, Seizure): {class_weights.cpu().numpy()}")
     print("-" * 60)
     
     start_time = time.time()
@@ -172,15 +193,18 @@ def train_model(model, train_loader, val_loader, num_epochs=100,
             print(f"Epoch [{epoch+1}/{num_epochs}] ({epoch_time:.2f}s)")
             print(f"  Train Loss: {train_loss:.4f}")
             print(f"  Val Loss: {val_metrics['loss']:.4f}")
-            print(f"  Val Acc: {val_metrics['accuracy']:.4f}")
-            print(f"  Val F1: {val_metrics['f1']:.4f}")
+            print(f"  Val Acc: {val_metrics['accuracy']:.4f} | F1: {val_metrics['f1']:.4f}")
+            print(f"  Val Recall: {val_metrics['sensitivity']:.4f} | Prec: {val_metrics['precision']:.4f}")
             if val_metrics['auc'] is not None:
                 print(f"  Val AUC: {val_metrics['auc']:.4f}")
         
-        # Save best model
-        if val_metrics['accuracy'] > best_val_acc:
+        # LR Scheduling based on F1 score
+        scheduler.step(val_metrics['f1'])
+        
+        # Save best model based on F1 score
+        if val_metrics['f1'] > best_val_f1:
+            best_val_f1 = val_metrics['f1']
             best_val_acc = val_metrics['accuracy']
-            best_val_loss = val_metrics['loss']
             patience_counter = 0
             
             if save_path:
@@ -190,7 +214,8 @@ def train_model(model, train_loader, val_loader, num_epochs=100,
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'val_accuracy': best_val_acc,
-                    'val_loss': best_val_loss,
+                    'val_f1': best_val_f1,
+                    'val_loss': val_metrics['loss'],
                 }, save_path)
         else:
             patience_counter += 1

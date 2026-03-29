@@ -30,12 +30,12 @@ def load_bonn_files(data_dir, set_name):
     
     set_dir = os.path.join(data_dir, set_name)
     
-    if set_name == 'A':
+    if set_name == 'Z':
         pattern = 'Z*.txt'
-    elif set_name == 'B':
+    elif set_name == 'O':
         pattern = 'O*.txt'
-    elif set_name == 'E':
-        pattern = 'S*.txt'
+    elif set_name == 'N':
+        pattern = 'N*.TXT'
     else:
         raise ValueError(f"Unknown set name: {set_name}")
     
@@ -147,15 +147,15 @@ def create_data_loaders(train_segments, train_labels, train_file_indices,
     return train_loader, test_loader
 
 
-def get_experiment_data_loaders(data_dir, experiment_type='A_vs_E', 
+def get_experiment_data_loaders(data_dir, experiment_type='Z_vs_N', 
                                fold_idx=0, n_splits=3, batch_size=12,
                                random_state=42):
     
     # Parse experiment type
-    if experiment_type == 'A_vs_E':
-        set1, set2 = 'A', 'E'
-    elif experiment_type == 'B_vs_E':
-        set1, set2 = 'B', 'E'
+    if experiment_type == 'Z_vs_N':
+        set1, set2 = 'Z', 'N'
+    elif experiment_type == 'O_vs_N':
+        set1, set2 = 'O', 'N'
     else:
         raise ValueError(f"Unknown experiment type: {experiment_type}")
     

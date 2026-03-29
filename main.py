@@ -48,11 +48,11 @@ def run_single_fold(experiment_type, fold_idx, segments, labels, file_indices,
     # Train
     history = train_model(
         model, train_loader, test_loader,
-        num_epochs=num_epochs,
-        learning_rate=0.01,
+        num_epochs=150,
+        learning_rate=0.0005,
         device=device,
         save_path=model_save_path,
-        early_stopping_patience=20
+        early_stopping_patience=45
     )
     
     # Test with best model
@@ -87,10 +87,10 @@ def run_experiment(data_dir, experiment_type, num_epochs=100,
     print("=" * 80)
     
     # Parse experiment type
-    if experiment_type == 'A_vs_E':
-        set1, set2 = 'A', 'E'
-    elif experiment_type == 'B_vs_E':
-        set1, set2 = 'B', 'E'
+    if experiment_type == 'Z_vs_N':
+        set1, set2 = 'Z', 'N'
+    elif experiment_type == 'O_vs_N':
+        set1, set2 = 'O', 'N'
     else:
         raise ValueError(f"Unknown experiment type: {experiment_type}")
     
@@ -146,9 +146,9 @@ def run_experiment(data_dir, experiment_type, num_epochs=100,
 
 def run_all_experiments(data_dir, num_epochs=100, device='cuda', results_dir='results'):
     """
-    Run both A vs E and B vs E experiments with TCN_SA model.
+    Run both Z vs N and O vs N experiments with TCN_SA model.
     """
-    experiments = ['A_vs_E', 'B_vs_E']
+    experiments = ['Z_vs_N', 'O_vs_N']
     
     all_results = {}
     
@@ -176,9 +176,9 @@ def run_all_experiments(data_dir, num_epochs=100, device='cuda', results_dir='re
 def main():
     parser = argparse.ArgumentParser(description='Run Bonn EEG Epilepsy Detection with TCN-SA')
     parser.add_argument('--data_dir', type=str, default='data',
-                       help='Directory containing A, B, E folders')
+                       help='Directory containing Z, O, N folders')
     parser.add_argument('--experiment', type=str, default='all',
-                       choices=['all', 'A_vs_E', 'B_vs_E'],
+                       choices=['all', 'Z_vs_N', 'O_vs_N'],
                        help='Which experiment to run')
     parser.add_argument('--epochs', type=int, default=100,
                        help='Number of training epochs (default: 100)')
